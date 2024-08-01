@@ -29,7 +29,6 @@ import Product from "../src/Modules/Product/Product.routes.js";
 import cart from "../src/Modules/Cart/cart.routes.js";
 import Order from "../src/Modules/Order/Order.routes.js";
 import paymentRoutes from "../src/Modules/Payment/Payments.routes.js";
-import privacy from "../src/Modules/Privacypolicy/Privacypolicy.routes.js";
 import termscondtion from "../src/Modules/TermAndConditions/Termscondition.routes.js";
 import blogs from "../src/Modules/Blog/Blog.routes.js";
 import subcategory from "../src/Modules/SubCategory/Subcaegory.routes.js";
@@ -44,6 +43,7 @@ import EmployeeRole from "../src/Modules/EmployeeRole/EmployeeRole.routes.js";
 import wishlist from "../src/Modules/Wishlist/Wishlist.routes.js";
 import Dashboard from "../src/Modules/DashBoard/DashBoard.routes.js";
 import vendor from "../src/Modules/NewVendor/NewVendor.routes.js";
+import privacy from "../src/Modules/PrivacyPolicy/Privacypolicy.routes.js";
 
 //routes declearetion
 app.use("/api/v1/admin", adminrouter);
