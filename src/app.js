@@ -39,11 +39,12 @@ import testimonials from "../src/Modules/Testimonial/Testimonial.routes.js";
 import Employee from "../src/Modules/Employee/Employee.routes.js";
 import Notification from "../src/Modules/Notification/Notification.routes.js";
 import EmployeeRole from "../src/Modules/EmployeeRole/EmployeeRole.routes.js";
-import wishlist from "../src/Modules/Wishlist/Wishlist.routes.js";
+
 import Dashboard from "../src/Modules/DashBoard/DashBoard.routes.js";
 import vendor from "../src/Modules/NewVendor/NewVendor.routes.js";
 import privacy from "../src/Modules/PrivacyPolicy/Privacypolicy.routes.js";
 import addon from "../src/Modules/AddON/Addon.routes.js";
+import wishlist from "../src/Modules/WishList/Wishlist.routes.js";
 
 //routes declearetion
 app.use("/api/v1/admin", adminrouter);
