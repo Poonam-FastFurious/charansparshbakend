@@ -32,7 +32,6 @@ import paymentRoutes from "../src/Modules/Payment/Payments.routes.js";
 import termscondtion from "../src/Modules/TermAndConditions/Termscondition.routes.js";
 import blogs from "../src/Modules/Blog/Blog.routes.js";
 import subcategory from "../src/Modules/SubCategory/Subcaegory.routes.js";
-import addon from "../src/Modules/Addon/Addon.routes.js";
 import Sliders from "../src/Modules/Slider/Slider.routes.js";
 import ReturnPolicy from "../src/Modules/ReturnPolicy/ReturnPolicy.routes.js";
 import faqs from "../src/Modules/FAQS/Faq.routes.js";
@@ -44,6 +43,7 @@ import wishlist from "../src/Modules/Wishlist/Wishlist.routes.js";
 import Dashboard from "../src/Modules/DashBoard/DashBoard.routes.js";
 import vendor from "../src/Modules/NewVendor/NewVendor.routes.js";
 import privacy from "../src/Modules/PrivacyPolicy/Privacypolicy.routes.js";
+import addon from "../src/Modules/AddON/Addon.routes.js";
 
 //routes declearetion
 app.use("/api/v1/admin", adminrouter);
