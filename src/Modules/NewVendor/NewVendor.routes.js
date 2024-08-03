@@ -1,7 +1,13 @@
 import { Router } from "express";
 
 import { upload } from "../../middlewares/FileUpload.middlwares.js";
-import { registerVendor } from "./NewVendor.controler.js";
+import {
+  getAllVendors,
+  getVendorDetails,
+  loginVendor,
+  logoutVendor,
+  registerVendor,
+} from "./NewVendor.controler.js";
 
 const router = Router();
 
@@ -26,5 +32,9 @@ router.route("/register").post(
   ]),
   registerVendor
 );
+router.route("/login").post(loginVendor);
+router.route("/").get(getAllVendors);
+router.route("/logout").post(logoutVendor);
+router.route("/vendor").get(getVendorDetails);
 
 export default router;

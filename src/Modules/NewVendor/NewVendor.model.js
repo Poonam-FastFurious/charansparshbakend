@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
-const Schema = mongoose.Schema;
-
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+const { Schema } = mongoose;
 const VendorSchema = new Schema(
   {
     sellerLegalName: {
@@ -49,7 +50,7 @@ const VendorSchema = new Schema(
     },
     vendorType: {
       type: String,
-      enum: ["Vendor", "Reseller"],
+      enum: ["Vendor", "Temple", "Pandit", "Tourist Guide"],
       required: true,
     },
     firstName: {
@@ -123,5 +124,43 @@ const VendorSchema = new Schema(
     timestamps: true,
   }
 );
+
+VendorSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+VendorSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
+VendorSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+      email: this.email,
+      mobileNumber: this.mobileNumber,
+      firstName: this.firstName,
+      lastName: this.lastName,
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+    }
+  );
+};
+
+VendorSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
+};
 
 export const Vendor = mongoose.model("Vendor", VendorSchema);
