@@ -2,6 +2,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
+import { Product } from "../Product/Product.models.js";
 import { Category } from "./Category.model.js";
 
 const createCategory = async (req, res) => {
@@ -10,20 +11,17 @@ const createCategory = async (req, res) => {
       throw new ApiError(400, "Request body is missing or empty");
     }
 
-    const { categoriesTitle, link, status } = req.body;
+    const { categoriesTitle, status } = req.body;
 
-    if (![categoriesTitle, link].every((field) => field?.trim())) {
-      throw new ApiError(400, "Categories title and link are required");
+    if (![categoriesTitle].every((field) => field?.trim())) {
+      throw new ApiError(400, "Categories title  are required");
     }
 
     const existingCategory = await Category.findOne({
-      $or: [{ categoriesTitle }, { link }],
+      $or: [{ categoriesTitle }],
     });
     if (existingCategory) {
-      throw new ApiError(
-        409,
-        "Category with the same title or link already exists"
-      );
+      throw new ApiError(409, "Category with the same title  already exists");
     }
 
     const imageLocalPath = req.files?.image[0].path;
@@ -38,7 +36,7 @@ const createCategory = async (req, res) => {
 
     const category = await Category.create({
       categoriesTitle,
-      link,
+
       image: imageUrl,
       status,
     });
@@ -148,6 +146,18 @@ const deleteCategory = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Category not found" });
   }
 
+  // Extract category name for checking associated products
+  const categoryName = category.categoriesTitle;
+
+  // Check if there are products associated with this category name
+  const productsWithCategory = await Product.find({ categories: categoryName });
+  if (productsWithCategory.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Category cannot be deleted as it has associated products",
+    });
+  }
+
   // Delete the category
   await Category.findByIdAndDelete(id);
 
@@ -156,8 +166,28 @@ const deleteCategory = asyncHandler(async (req, res) => {
     message: "Category deleted successfully",
   });
 });
+
 const getAllCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find();
+  const categories = await Category.aggregate([
+    {
+      $lookup: {
+        from: "products", // Collection name in MongoDB
+        localField: "categoriesTitle",
+        foreignField: "categories",
+        as: "products",
+      },
+    },
+    {
+      $addFields: {
+        productCount: { $size: "$products" }, // Add product count
+      },
+    },
+    {
+      $project: {
+        products: 0, // Exclude products array if not needed in response
+      },
+    },
+  ]);
 
   return res.json({
     success: true,

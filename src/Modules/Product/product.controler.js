@@ -50,7 +50,6 @@ const addProduct = asyncHandler(async (req, res) => {
     // Fetch existing category from the database
     const existingCategory = await Category.findOne({
       categoriesTitle: categories,
-      status: "active",
     });
 
     if (!existingCategory) {
@@ -107,9 +106,21 @@ const addProduct = asyncHandler(async (req, res) => {
       return res.status(error.statusCode).json({
         success: false,
         message: error.message,
+        errors: error.errors,
       });
     }
+    if (error.name === "ValidationError") {
+      const formattedErrors = Object.keys(error.errors).map((key) => ({
+        path: key,
+        message: error.errors[key].message,
+      }));
 
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: formattedErrors,
+      });
+    }
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -314,7 +325,6 @@ const updateProduct = asyncHandler(async (req, res) => {
     if (categories) {
       const existingCategory = await Category.findOne({
         categoriesTitle: categories,
-        status: "active",
       });
       if (!existingCategory) {
         throw new ApiError(400, `Invalid category: ${categories}`);
