@@ -3,6 +3,7 @@ import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
 import { Category } from "../Category/Category.model.js";
+import { SubCategory } from "../SubCategory/Subcategory.modal.js";
 import { Product } from "./Product.models.js";
 const addProduct = asyncHandler(async (req, res) => {
   try {
@@ -17,18 +18,28 @@ const addProduct = asyncHandler(async (req, res) => {
       discount,
       cutPrice,
       categories,
+      subcategory, // Add this line
+      state,
       tags,
       sku,
       shortDescription,
       stocks,
       youtubeVideoLink,
+      IsApproved,
     } = req.body;
 
     // Validate required fields
     if (
-      ![title, description, price, stocks, sku, categories].every(
-        (field) => field && field.trim()
-      )
+      ![
+        title,
+        description,
+        price,
+        stocks,
+        sku,
+        categories,
+        subcategory, // Add this line
+        state,
+      ].every((field) => field && field.trim())
     ) {
       throw new ApiError(400, "All required fields must be filled");
     }
@@ -53,7 +64,15 @@ const addProduct = asyncHandler(async (req, res) => {
     });
 
     if (!existingCategory) {
-      throw new ApiError(400, `Invalid category: ${categories}`);
+      throw new ApiError(400, `Invalid category: ${subcategory}`);
+    }
+
+    const existingsubCategory = await SubCategory.findOne({
+      subCategoryTitle: subcategory,
+    });
+
+    if (!existingsubCategory) {
+      throw new ApiError(400, `Invalid subcategories: ${subcategory}`);
     }
 
     // Handle image and thumbnail upload
@@ -75,7 +94,8 @@ const addProduct = asyncHandler(async (req, res) => {
 
     // Validate and handle tags
     const parsedTags = Array.isArray(tags) ? tags : [tags]; // Ensure tags is an array
-
+    const vendorId = req.admin._id;
+    const vendorName = req.admin.sellerLegalName;
     // Create a new product
     const newProduct = await Product.create({
       title,
@@ -84,6 +104,8 @@ const addProduct = asyncHandler(async (req, res) => {
       discount,
       cutPrice,
       categories,
+      subcategory, // Add this line
+      state,
       tags: parsedTags,
       sku,
       shortDescription,
@@ -91,6 +113,11 @@ const addProduct = asyncHandler(async (req, res) => {
       thumbnail: uploadedThumbnails.map((thumbnail) => thumbnail.url),
       stocks: parsedStocks,
       youtubeVideoLink,
+      IsApproved,
+      vendor: {
+        id: vendorId,
+        name: vendorName,
+      },
     });
 
     // Return successful response
@@ -130,63 +157,11 @@ const addProduct = asyncHandler(async (req, res) => {
 
 const getAllProducts = asyncHandler(async (req, res) => {
   try {
-    // Extract query parameters for pagination, filtering, and search
-    const {
-      page = 1,
-      limit = 10,
-      category,
-      minPrice,
-      maxPrice,
-      search,
-    } = req.query;
+    // Fetch all products
+    const products = await Product.find();
 
-    // Validate pagination parameters
-    const pageNumber = parseInt(page, 10) || 1;
-    const pageSize = parseInt(limit, 10) || 10;
-
-    if (pageNumber < 1 || pageSize < 1) {
-      throw new ApiError(400, "Invalid pagination parameters");
-    }
-
-    // Construct the query object for filtering and searching
-    const query = {};
-
-    // Add category filter if provided
-    if (category) {
-      query.categories = category;
-    }
-
-    // Add price range filters if provided
-    if (minPrice) {
-      const min = parseFloat(minPrice);
-      if (!isNaN(min)) {
-        query.price = { ...query.price, $gte: min };
-      }
-    }
-    if (maxPrice) {
-      const max = parseFloat(maxPrice);
-      if (!isNaN(max)) {
-        query.price = { ...query.price, $lte: max };
-      }
-    }
-
-    // Add search functionality
-    if (search) {
-      const searchRegex = new RegExp(search, "i"); // 'i' for case-insensitive search
-      query.$or = [
-        { title: { $regex: searchRegex } },
-        { description: { $regex: searchRegex } },
-        { tags: { $regex: searchRegex } },
-      ];
-    }
-
-    // Fetch the products with pagination and filtering
-    const products = await Product.find(query)
-      .skip((pageNumber - 1) * pageSize)
-      .limit(pageSize);
-
-    // Count the total number of products matching the query
-    const totalProducts = await Product.countDocuments(query);
+    // Count the total number of products
+    const totalProducts = await Product.countDocuments();
 
     // Send the response
     return res.status(200).json({
@@ -194,8 +169,6 @@ const getAllProducts = asyncHandler(async (req, res) => {
       message: "Products retrieved successfully",
       data: products,
       total: totalProducts,
-      currentPage: pageNumber,
-      totalPages: Math.ceil(totalProducts / pageSize),
     });
   } catch (error) {
     console.error("Error retrieving products:", error);
@@ -449,6 +422,33 @@ const searchProducts = asyncHandler(async (req, res) => {
     new ApiResponse(200, products, "Products retrieved successfully")
   );
 });
+const approveProduct = asyncHandler(async (req, res) => {
+  const { id } = req.query; // Destructure the id from the request body
+
+  if (!id) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  // Find the product by ID
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  // Update the IsApproved field to true
+  product.IsApproved = true;
+  await product.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isApproved: product.IsApproved },
+        "Product approval status updated successfully"
+      )
+    );
+});
 
 export {
   addProduct,
@@ -457,4 +457,5 @@ export {
   getSingleProduct,
   updateProduct,
   searchProducts,
+  approveProduct,
 };

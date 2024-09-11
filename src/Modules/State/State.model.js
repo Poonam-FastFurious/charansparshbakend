@@ -1,18 +1,11 @@
 import mongoose from "mongoose";
 
-const categorySchema = new mongoose.Schema(
+const StateSchema = new mongoose.Schema(
   {
-    categoriesTitle: {
+    State: {
       type: String,
       required: true,
     },
-    link: {
-      type: String,
-    },
-    image: {
-      type: String,
-    },
-
     status: {
       type: String,
       enum: ["active", "inactive"],
@@ -24,4 +17,4 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-export const Category = mongoose.model("Category", categorySchema);
+export const State = mongoose.model("State", StateSchema);
