@@ -51,7 +51,7 @@ const addToWishlist = asyncHandler(async (req, res) => {
         productDescription: product.description,
         quantity: 1,
         price: product.price,
-        url: product.thumbnail, // Ensure product.thumbnail exists
+        url: product.thumbnail[0], // Ensure product.thumbnail exists
         addedAt: Date.now(),
       });
     }

@@ -11,7 +11,6 @@ const orderSchema = new mongoose.Schema(
     vendor: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vendor", // Reference to Vendor model
-      required: true,
     },
     orderID: {
       type: String,
