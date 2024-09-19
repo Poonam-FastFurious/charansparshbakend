@@ -315,13 +315,10 @@ const getTotalPayments = async (req, res) => {
   }
 };
 
-
-
 export {
   placeOrder,
   getAllOrders,
   updateOrderStatus,
   getOrderById,
   getTotalPayments,
- 
 };

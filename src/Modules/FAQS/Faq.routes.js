@@ -1,13 +1,9 @@
 import { Router } from "express";
-import { addFAQ } from "./Faqs.controler.js";
-
-
-
-
+import { addFAQ, getAllFAQs } from "./Faqs.controler.js";
 
 const router = Router();
 
 router.route("/add").post(addFAQ);
-
+router.route("/all").get(getAllFAQs);
 
 export default router;

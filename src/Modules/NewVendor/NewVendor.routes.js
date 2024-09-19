@@ -10,7 +10,9 @@ import {
   logoutVendor,
   registerVendor,
   requestWithdrawal,
+  updateWithdrawalStatus,
 } from "./NewVendor.controler.js";
+import { vendorVerifyJWT } from "../../middlewares/vendorVerifyJWT.js";
 
 const router = Router();
 
@@ -39,7 +41,8 @@ router.route("/login").post(loginVendor);
 router.route("/addpayments").post(addDeliveredProductTransaction);
 router.route("/").get(getAllVendors);
 router.route("/logout").post(logoutVendor);
-router.route("/withdrawl").post(requestWithdrawal);
+router.route("/withdrawl").post(vendorVerifyJWT, requestWithdrawal);
+router.route("/aprovewithdrwal").post(updateWithdrawalStatus);
 router.route("/withdrawlall").get(getAllWithdrawalRequests);
 router.route("/vendor").get(getVendorDetails);
 

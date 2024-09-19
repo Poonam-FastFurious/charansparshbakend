@@ -79,16 +79,6 @@ const updateCategory = async (req, res) => {
     if (status?.trim()) updateFields.status = status;
 
     // Check for existing category with the same title or link (excluding the current category)
-    const existingCategory = await Category.findOne({
-      $or: [{ categoriesTitle }, { link }],
-      _id: { $ne: id },
-    });
-    if (existingCategory) {
-      throw new ApiError(
-        409,
-        "Category with the same title or link already exists"
-      );
-    }
 
     const imageLocalPath = req.files?.image?.[0]?.path;
     if (imageLocalPath) {

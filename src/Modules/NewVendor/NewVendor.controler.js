@@ -363,23 +363,27 @@ const addDeliveredProductTransaction = async (req, res) => {
 };
 const requestWithdrawal = asyncHandler(async (req, res) => {
   try {
-    const { vendorId, amount } = req.body;
+    const { amount } = req.body;
+    const vendor = req.admin;
 
-    if (!vendorId || !amount) {
-      throw new ApiError(400, "Vendor ID and amount are required");
+    console.log("Vendor object:", vendor); // Log vendor object to inspect
+
+    if (!vendor) {
+      throw new ApiError(500, "Vendor object is not available");
+    }
+
+    const vendorId = vendor._id;
+
+    if (!amount) {
+      throw new ApiError(400, "Amount is required");
     }
 
     if (amount <= 0) {
       throw new ApiError(400, "Amount must be greater than zero");
     }
 
-    const vendor = await Vendor.findById(vendorId);
-    if (!vendor) {
-      throw new ApiError(404, "Vendor not found");
-    }
-
     if (amount > vendor.totalAmount) {
-      throw new ApiError(400, "Withdrawal amount exceeds the total amount");
+      throw new ApiError(400, "insufficient balance ");
     }
 
     const withdrawalRequest = await WithdrawalRequest.create({
@@ -419,6 +423,57 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
       .json(new ApiResponse(false, "Internal server error"));
   }
 });
+const updateWithdrawalStatus = asyncHandler(async (req, res) => {
+  try {
+    const { requestId, status } = req.body;
+
+    if (!requestId) {
+      throw new ApiError(400, "Withdrawal request ID is required");
+    }
+
+    if (!status || !["pending", "approved", "rejected"].includes(status)) {
+      throw new ApiError(400, "Invalid status value");
+    }
+
+    // Find the withdrawal request
+    const withdrawalRequest = await WithdrawalRequest.findById(requestId);
+
+    if (!withdrawalRequest) {
+      throw new ApiError(404, "Withdrawal request not found");
+    }
+
+    // Ensure the vendor is authorized to update this request
+
+    // Update the status of the withdrawal request
+    withdrawalRequest.status = status;
+    await withdrawalRequest.save();
+
+    // Optionally handle additional actions based on status
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          true,
+          "Withdrawal request status updated successfully",
+          withdrawalRequest
+        )
+      );
+  } catch (error) {
+    console.error("Error during withdrawal status update:", error);
+
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(false, error.message));
+    }
+
+    return res
+      .status(500)
+      .json(new ApiResponse(false, "Internal server error"));
+  }
+});
+
 const getAllWithdrawalRequests = async (req, res) => {
   try {
     // Fetch all withdrawal requests
@@ -437,6 +492,8 @@ const getAllWithdrawalRequests = async (req, res) => {
                 businessName: vendor.businessName,
                 Account: vendor.accountHolderName,
                 BankType: vendor.accountType,
+                accountnumber: vendor.accountNumber,
+                ifsc: vendor.ifscCode,
               }
             : null,
         };
@@ -466,4 +523,5 @@ export {
   addDeliveredProductTransaction,
   requestWithdrawal,
   getAllWithdrawalRequests,
+  updateWithdrawalStatus,
 };

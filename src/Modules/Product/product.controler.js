@@ -286,6 +286,9 @@ const updateProduct = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Product not found");
     }
 
+    if (product.IsApproved) {
+      product.IsApproved = false; // Set IsApproved to false if it was true
+    }
     // Validate SKU if provided
     if (sku) {
       const existingProduct = await Product.findOne({ sku });
