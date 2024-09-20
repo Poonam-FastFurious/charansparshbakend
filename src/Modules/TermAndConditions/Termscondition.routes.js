@@ -1,9 +1,12 @@
 import { Router } from "express";
 
-import { addtermscondition } from "./termscondition.controler.js";
-
+import {
+  addtermscondition,
+  getAllTermsConditions,
+} from "./termscondition.controler.js";
 
 const router = Router();
 router.route("/add").post(addtermscondition);
+router.route("/").get(getAllTermsConditions);
 
 export default router;

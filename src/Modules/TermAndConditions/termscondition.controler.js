@@ -47,5 +47,20 @@ const addtermscondition = asyncHandler(async (req, res) => {
             });
       }
 });
+const getAllTermsConditions = asyncHandler(async (req, res) => {
+      try {
+            const termsConditions = await termscondition.find({});
+            res.status(200).json({
+                  success: true,
+                  data: termsConditions,
+                  message: "Terms and conditions fetched successfully",
+            });
+      } catch (error) {
+            res.status(500).json({
+                  success: false,
+                  message: error.message || "Internal Server Error",
+            });
+      }
+});
 
-export { addtermscondition }
+export { addtermscondition ,getAllTermsConditions}

@@ -54,5 +54,29 @@ const addPrivacyPolicy = asyncHandler(async (req, res) => {
     });
   }
 });
+const getAllPrivacyPolicies = asyncHandler(async (req, res) => {
+  try {
+        // Fetch all privacy policies from the database
+        const privacyPolicies = await PrivacyPolicy.find();
 
-export { addPrivacyPolicy };
+        // Check if any privacy policies exist
+        if (!privacyPolicies || privacyPolicies.length === 0) {
+              throw new ApiError(404, "No privacy policies found");
+        }
+
+        // Return success response with privacy policies data
+        res.status(200).json({
+              success: true,
+              data: privacyPolicies,
+              message: "Privacy policies retrieved successfully",
+        });
+  } catch (error) {
+        // Handle errors
+        res.status(500).json({
+              success: false,
+              message: error.message || "Internal Server Error",
+        });
+  }
+});
+
+export { addPrivacyPolicy ,getAllPrivacyPolicies};
