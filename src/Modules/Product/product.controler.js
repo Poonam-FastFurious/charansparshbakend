@@ -368,63 +368,6 @@ const updateProduct = asyncHandler(async (req, res) => {
     });
   }
 });
-const buildQuery = (params) => {
-  const query = {};
-
-  if (params.title) {
-    query.title = { $regex: params.title, $options: "i" };
-  }
-  if (params.description) {
-    query.description = { $regex: params.description, $options: "i" };
-  }
-  if (params.price) {
-    query.price = params.price;
-  }
-  if (params.stocks) {
-    query.stocks = params.stocks;
-  }
-  if (params.discount) {
-    query.discount = params.discount;
-  }
-  if (params.cutPrice) {
-    query.cutPrice = params.cutPrice;
-  }
-  if (params.categories) {
-    query.categories = params.categories;
-  }
-  if (params.tags) {
-    query.tags = { $in: params.tags };
-  }
-  if (params.sku) {
-    query.sku = params.sku;
-  }
-  if (params.shortDescription) {
-    query.shortDescription = { $regex: params.shortDescription, $options: "i" };
-  }
-  if (params.youtubeVideoLink) {
-    query.youtubeVideoLink = { $regex: params.youtubeVideoLink, $options: "i" };
-  }
-  if (params.thumbnail) {
-    query.thumbnail = { $in: params.thumbnail };
-  }
-
-  return query;
-};
-
-const searchProducts = asyncHandler(async (req, res) => {
-  const query = buildQuery(req.query);
-
-  const products = await Product.find(query);
-
-  if (products.length === 0) {
-    await SearchData.create({ searchParam: req.query });
-    throw new ApiError(404, "No products found matching the criteria.");
-  }
-
-  return res.json(
-    new ApiResponse(200, products, "Products retrieved successfully")
-  );
-});
 const approveProduct = asyncHandler(async (req, res) => {
   const { id } = req.query; // Destructure the id from the request body
 
@@ -451,6 +394,99 @@ const approveProduct = asyncHandler(async (req, res) => {
         "Product approval status updated successfully"
       )
     );
+});
+const buildQuery = (params) => {
+  const query = {};
+
+  if (params.title) {
+    query.title = { $regex: params.title, $options: "i" }; // Case-insensitive regex
+  }
+  if (params.description) {
+    query.description = { $regex: params.description, $options: "i" };
+  }
+  if (params.price) {
+    query.price = params.price;
+  }
+  if (params.cutPrice) {
+    query.cutPrice = params.cutPrice;
+  }
+  if (params.categories) {
+    query.categories = params.categories;
+  }
+  if (params.tags) {
+    query.tags = params.tags;
+  }
+  if (params.discount) {
+    query.discount = params.discount;
+  }
+  if (params.rating) {
+    query.rating = params.rating;
+  }
+  if (params.stocks) {
+    query.stocks = Number(params.stocks);
+  }
+
+  if (params.tags) {
+    query.tags = params.tags;
+  }
+  if (params.sku) {
+    query.sku = params.sku;
+  }
+  if (params.shortDescription) {
+    query.shortDescription = { $in: params.shortDescription };
+  }
+
+  return query;
+};
+
+const searchProducts = asyncHandler(async (req, res) => {
+  try {
+    let searchParams = req.query.query;
+
+    if (!searchParams) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Search params are required."));
+    }
+
+    const searchTerms = searchParams.split(" ");
+
+    const query = {
+      $and: searchTerms.map((term) => ({
+        $or: [
+          { title: { $regex: term, $options: "i" } },
+          { description: { $regex: term, $options: "i" } },
+          { shortDescription: { $regex: term, $options: "i" } },
+          { categories: { $regex: term, $options: "i" } },
+          { stocks: !isNaN(term) ? Number(term) : null },
+          { brand: { $regex: term, $options: "i" } },
+          { productTags: { $regex: term, $options: "i" } },
+          { type: { $regex: term, $options: "i" } },
+          { itemType: { $regex: term, $options: "i" } },
+          { tags: { $regex: term, $options: "i" } },
+        ],
+      })),
+    };
+
+    const products = await Product.find(query);
+
+    if (products.length === 0) {
+      await SearchData.create({ searchParam: searchParams });
+      // Throw a 404 error if no products are found
+      throw new ApiError(404, "No products found matching the criteria.");
+    }
+
+    // Return the found products
+    return res.json(
+      new ApiResponse(200, products, "Products retrieved successfully")
+    );
+  } catch (error) {
+    // Handle unexpected errors
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message || "An unexpected error occurred",
+    });
+  }
 });
 
 export {
