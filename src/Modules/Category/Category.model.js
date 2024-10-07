@@ -18,6 +18,14 @@ const categorySchema = new mongoose.Schema(
       enum: ["active", "inactive"],
       default: "active",
     },
+    isHeaderCategory: {
+      type: Boolean,
+      default: false,
+    },
+    isCollectionCategory: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

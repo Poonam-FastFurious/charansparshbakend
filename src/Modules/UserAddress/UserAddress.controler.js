@@ -124,8 +124,6 @@ const updateAddress = asyncHandler(async (req, res) => {
   address.state = state || address.state;
   address.postalCode = postalCode || address.postalCode;
   address.country = country || address.country;
-  address.isDefault =
-    typeof isDefault === "boolean" ? isDefault : address.isDefault;
   address.addressType = addressType || address.addressType;
 
   // Save the updated address

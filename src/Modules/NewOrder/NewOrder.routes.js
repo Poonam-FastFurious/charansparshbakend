@@ -12,8 +12,6 @@ const router = Router();
 router.route("/add").post(placeOrder);
 router.route("/allorder").get(getAllOrders);
 router.route("/singleorder/:id").get(getOrderById);
-
-router.route("/updateorder").patch(updateOrderStatus);
 router.route("/updateorder").patch(updateOrderStatus);
 router.route("/total-payments").get(getTotalPayments);
 
