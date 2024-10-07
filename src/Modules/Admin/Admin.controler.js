@@ -28,6 +28,7 @@ const initializeAdmin = asyncHandler(async (req, res) => {
 });
 
 export { initializeAdmin };
+
 const loginAdmin = async (req, res) => {
   const generateAccessAndRefereshTokens = async (userId) => {
     try {
