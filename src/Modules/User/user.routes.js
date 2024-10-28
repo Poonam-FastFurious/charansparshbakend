@@ -10,6 +10,7 @@ import {
   updateAccountDetails,
   getAllUsers,
   getUserProfile,
+  deleteUser,
 } from "./User.controler.js";
 
 import { verifyJWT } from "../../middlewares/auth.middlwares.js";
@@ -37,6 +38,7 @@ router.route("/current-user").get(verifyJWT, getCurrentUser);
 router.route("/alluser").get(getAllUsers);
 router.route("/update-account").patch(verifyJWT, updateAccountDetails);
 router.route("/getuser").get(getUserProfile);
+router.route("/delete").delete(deleteUser);
 
 router
   .route("/avatar")

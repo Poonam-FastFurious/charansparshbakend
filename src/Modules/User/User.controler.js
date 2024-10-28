@@ -250,27 +250,46 @@ const getUserProfile = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, { user }, "User profile fetched successfully"));
 });
 
+// Controller to update user account details
 const updateAccountDetails = asyncHandler(async (req, res) => {
-  const { fullName, email } = req.body;
+  const { fullName, email, mobile, username, dob, gender } = req.body;
 
+  // Check for required fields
   if (!fullName || !email) {
-    throw new ApiError(400, "All fields are required");
+    throw new ApiError(400, "Full name and email are required");
   }
 
-  const user = await User.findByIdAndUpdate(
+  // Check if email already exists in other user's account
+  const emailExists = await User.findOne({ email, _id: { $ne: req.user._id } });
+  if (emailExists) {
+    throw new ApiError(400, "Email already in use by another account");
+  }
+
+  // Update user details
+  const updatedUser = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
         fullName,
-        email: email,
+        email,
+        mobile,
+        username,
+        dob,
+        gender,
       },
     },
-    { new: true }
+    { new: true, runValidators: true }
   ).select("-password");
+
+  if (!updatedUser) {
+    throw new ApiError(404, "User not found");
+  }
 
   return res
     .status(200)
-    .json(new ApiResponse(200, user, "Account details updated successfully"));
+    .json(
+      new ApiResponse(200, updatedUser, "Account details updated successfully")
+    );
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
@@ -313,6 +332,27 @@ const getAllUsers = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, users, "All users fetched successfully"));
 });
+const deleteUser = asyncHandler(async (req, res) => {
+  const { id } = req.query;
+
+  // Validate user ID
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new ApiError(400, "Invalid user ID");
+  }
+
+  // Find and delete user
+  const user = await User.findByIdAndDelete(id);
+
+  // If user not found
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Return success response
+  return res
+    .status(200)
+    .json(new ApiResponse(200, null, "User deleted successfully"));
+});
 
 export {
   registerUser,
@@ -325,4 +365,5 @@ export {
   updateUserAvatar,
   getAllUsers,
   getUserProfile,
+  deleteUser,
 };

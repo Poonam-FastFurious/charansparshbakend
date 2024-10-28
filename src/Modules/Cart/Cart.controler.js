@@ -14,7 +14,6 @@ const addToCart = asyncHandler(async (req, res) => {
     throw new ApiError(401, "User not authenticated");
   }
 
-
   // Check if the product exists
   const product = await Product.findById(productId);
   if (!product) {
@@ -94,7 +93,7 @@ const getCart = asyncHandler(async (req, res) => {
   // Find the user's cart
   const cart = await Cart.findOne({ user: req.user._id }).populate({
     path: "items.product",
-    select: "productTitle price description image", // Add 'image' field to select
+    select: "title price description image", // Add 'image' field to select
   });
 
   if (!cart) {

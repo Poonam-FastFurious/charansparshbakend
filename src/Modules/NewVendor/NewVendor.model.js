@@ -2,6 +2,31 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 const { Schema } = mongoose;
+
+const TransactionSchema = new Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["credit", "debit"],
+      required: true,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
+    },
+    description: {
+      type: String,
+    },
+  },
+  {
+    _id: false, // No need for an _id field in the sub-schema
+  }
+);
+
 const VendorSchema = new Schema(
   {
     sellerLegalName: {
@@ -118,6 +143,14 @@ const VendorSchema = new Schema(
     },
     addressLine2: {
       type: String,
+    },
+    transactions: {
+      type: [TransactionSchema],
+      default: [], // Initialize transactions as an empty array
+    },
+    totalAmount: {
+      type: Number,
+      default: 0, // Store the total amount of all transactions
     },
   },
   {

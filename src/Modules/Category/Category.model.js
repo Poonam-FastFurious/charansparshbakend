@@ -12,10 +12,19 @@ const categorySchema = new mongoose.Schema(
     image: {
       type: String,
     },
+
     status: {
       type: String,
       enum: ["active", "inactive"],
       default: "active",
+    },
+    isHeaderCategory: {
+      type: Boolean,
+      default: false,
+    },
+    isCollectionCategory: {
+      type: Boolean,
+      default: false,
     },
   },
   {

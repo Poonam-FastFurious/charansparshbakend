@@ -3,6 +3,7 @@ import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
 import { Category } from "../Category/Category.model.js";
+import { SubCategory } from "../SubCategory/Subcategory.modal.js";
 import { Product } from "./Product.models.js";
 const addProduct = asyncHandler(async (req, res) => {
   try {
@@ -17,18 +18,28 @@ const addProduct = asyncHandler(async (req, res) => {
       discount,
       cutPrice,
       categories,
+      subcategory, // Add this line
+      state,
       tags,
       sku,
       shortDescription,
       stocks,
       youtubeVideoLink,
+      IsApproved,
     } = req.body;
 
     // Validate required fields
     if (
-      ![title, description, price, stocks, sku, categories].every(
-        (field) => field && field.trim()
-      )
+      ![
+        title,
+        description,
+        price,
+        stocks,
+        sku,
+        categories,
+        subcategory, // Add this line
+        state,
+      ].every((field) => field && field.trim())
     ) {
       throw new ApiError(400, "All required fields must be filled");
     }
@@ -53,7 +64,15 @@ const addProduct = asyncHandler(async (req, res) => {
     });
 
     if (!existingCategory) {
-      throw new ApiError(400, `Invalid category: ${categories}`);
+      throw new ApiError(400, `Invalid category: ${subcategory}`);
+    }
+
+    const existingsubCategory = await SubCategory.findOne({
+      subCategoryTitle: subcategory,
+    });
+
+    if (!existingsubCategory) {
+      throw new ApiError(400, `Invalid subcategories: ${subcategory}`);
     }
 
     // Handle image and thumbnail upload
@@ -75,7 +94,8 @@ const addProduct = asyncHandler(async (req, res) => {
 
     // Validate and handle tags
     const parsedTags = Array.isArray(tags) ? tags : [tags]; // Ensure tags is an array
-
+    const vendorId = req.admin._id;
+    const vendorName = req.admin.sellerLegalName;
     // Create a new product
     const newProduct = await Product.create({
       title,
@@ -84,6 +104,8 @@ const addProduct = asyncHandler(async (req, res) => {
       discount,
       cutPrice,
       categories,
+      subcategory, // Add this line
+      state,
       tags: parsedTags,
       sku,
       shortDescription,
@@ -91,6 +113,11 @@ const addProduct = asyncHandler(async (req, res) => {
       thumbnail: uploadedThumbnails.map((thumbnail) => thumbnail.url),
       stocks: parsedStocks,
       youtubeVideoLink,
+      IsApproved,
+      vendor: {
+        id: vendorId,
+        name: vendorName,
+      },
     });
 
     // Return successful response
@@ -130,63 +157,11 @@ const addProduct = asyncHandler(async (req, res) => {
 
 const getAllProducts = asyncHandler(async (req, res) => {
   try {
-    // Extract query parameters for pagination, filtering, and search
-    const {
-      page = 1,
-      limit = 10,
-      category,
-      minPrice,
-      maxPrice,
-      search,
-    } = req.query;
+    // Fetch all products
+    const products = await Product.find();
 
-    // Validate pagination parameters
-    const pageNumber = parseInt(page, 10) || 1;
-    const pageSize = parseInt(limit, 10) || 10;
-
-    if (pageNumber < 1 || pageSize < 1) {
-      throw new ApiError(400, "Invalid pagination parameters");
-    }
-
-    // Construct the query object for filtering and searching
-    const query = {};
-
-    // Add category filter if provided
-    if (category) {
-      query.categories = category;
-    }
-
-    // Add price range filters if provided
-    if (minPrice) {
-      const min = parseFloat(minPrice);
-      if (!isNaN(min)) {
-        query.price = { ...query.price, $gte: min };
-      }
-    }
-    if (maxPrice) {
-      const max = parseFloat(maxPrice);
-      if (!isNaN(max)) {
-        query.price = { ...query.price, $lte: max };
-      }
-    }
-
-    // Add search functionality
-    if (search) {
-      const searchRegex = new RegExp(search, "i"); // 'i' for case-insensitive search
-      query.$or = [
-        { title: { $regex: searchRegex } },
-        { description: { $regex: searchRegex } },
-        { tags: { $regex: searchRegex } },
-      ];
-    }
-
-    // Fetch the products with pagination and filtering
-    const products = await Product.find(query)
-      .skip((pageNumber - 1) * pageSize)
-      .limit(pageSize);
-
-    // Count the total number of products matching the query
-    const totalProducts = await Product.countDocuments(query);
+    // Count the total number of products
+    const totalProducts = await Product.countDocuments();
 
     // Send the response
     return res.status(200).json({
@@ -194,8 +169,6 @@ const getAllProducts = asyncHandler(async (req, res) => {
       message: "Products retrieved successfully",
       data: products,
       total: totalProducts,
-      currentPage: pageNumber,
-      totalPages: Math.ceil(totalProducts / pageSize),
     });
   } catch (error) {
     console.error("Error retrieving products:", error);
@@ -313,6 +286,9 @@ const updateProduct = asyncHandler(async (req, res) => {
       throw new ApiError(404, "Product not found");
     }
 
+    if (product.IsApproved) {
+      product.IsApproved = false; // Set IsApproved to false if it was true
+    }
     // Validate SKU if provided
     if (sku) {
       const existingProduct = await Product.findOne({ sku });
@@ -392,23 +368,44 @@ const updateProduct = asyncHandler(async (req, res) => {
     });
   }
 });
+const approveProduct = asyncHandler(async (req, res) => {
+  const { id } = req.query; // Destructure the id from the request body
+
+  if (!id) {
+    throw new ApiError(400, "Product ID is required");
+  }
+
+  // Find the product by ID
+  const product = await Product.findById(id);
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  // Update the IsApproved field to true
+  product.IsApproved = true;
+  await product.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        { isApproved: product.IsApproved },
+        "Product approval status updated successfully"
+      )
+    );
+});
 const buildQuery = (params) => {
   const query = {};
 
   if (params.title) {
-    query.title = { $regex: params.title, $options: "i" };
+    query.title = { $regex: params.title, $options: "i" }; // Case-insensitive regex
   }
   if (params.description) {
     query.description = { $regex: params.description, $options: "i" };
   }
   if (params.price) {
     query.price = params.price;
-  }
-  if (params.stocks) {
-    query.stocks = params.stocks;
-  }
-  if (params.discount) {
-    query.discount = params.discount;
   }
   if (params.cutPrice) {
     query.cutPrice = params.cutPrice;
@@ -417,37 +414,79 @@ const buildQuery = (params) => {
     query.categories = params.categories;
   }
   if (params.tags) {
-    query.tags = { $in: params.tags };
+    query.tags = params.tags;
+  }
+  if (params.discount) {
+    query.discount = params.discount;
+  }
+  if (params.rating) {
+    query.rating = params.rating;
+  }
+  if (params.stocks) {
+    query.stocks = Number(params.stocks);
+  }
+
+  if (params.tags) {
+    query.tags = params.tags;
   }
   if (params.sku) {
     query.sku = params.sku;
   }
   if (params.shortDescription) {
-    query.shortDescription = { $regex: params.shortDescription, $options: "i" };
-  }
-  if (params.youtubeVideoLink) {
-    query.youtubeVideoLink = { $regex: params.youtubeVideoLink, $options: "i" };
-  }
-  if (params.thumbnail) {
-    query.thumbnail = { $in: params.thumbnail };
+    query.shortDescription = { $in: params.shortDescription };
   }
 
   return query;
 };
 
 const searchProducts = asyncHandler(async (req, res) => {
-  const query = buildQuery(req.query);
+  try {
+    let searchParams = req.query.query;
 
-  const products = await Product.find(query);
+    if (!searchParams) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, null, "Search params are required."));
+    }
 
-  if (products.length === 0) {
-    await SearchData.create({ searchParam: req.query });
-    throw new ApiError(404, "No products found matching the criteria.");
+    const searchTerms = searchParams.split(" ");
+
+    const query = {
+      $and: searchTerms.map((term) => ({
+        $or: [
+          { title: { $regex: term, $options: "i" } },
+          { description: { $regex: term, $options: "i" } },
+          { shortDescription: { $regex: term, $options: "i" } },
+          { categories: { $regex: term, $options: "i" } },
+          { stocks: !isNaN(term) ? Number(term) : null },
+          { brand: { $regex: term, $options: "i" } },
+          { productTags: { $regex: term, $options: "i" } },
+          { type: { $regex: term, $options: "i" } },
+          { itemType: { $regex: term, $options: "i" } },
+          { tags: { $regex: term, $options: "i" } },
+        ],
+      })),
+    };
+
+    const products = await Product.find(query);
+
+    if (products.length === 0) {
+      await SearchData.create({ searchParam: searchParams });
+      // Throw a 404 error if no products are found
+      throw new ApiError(404, "No products found matching the criteria.");
+    }
+
+    // Return the found products
+    return res.json(
+      new ApiResponse(200, products, "Products retrieved successfully")
+    );
+  } catch (error) {
+    // Handle unexpected errors
+    return res.status(error.statusCode || 500).json({
+      status: "error",
+      message: error.message || "An unexpected error occurred",
+    });
   }
-
-  return res.json(
-    new ApiResponse(200, products, "Products retrieved successfully")
-  );
 });
 
 export {
@@ -457,4 +496,5 @@ export {
   getSingleProduct,
   updateProduct,
   searchProducts,
+  approveProduct,
 };

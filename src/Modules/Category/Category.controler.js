@@ -11,7 +11,8 @@ const createCategory = async (req, res) => {
       throw new ApiError(400, "Request body is missing or empty");
     }
 
-    const { categoriesTitle, status } = req.body;
+    const { categoriesTitle, status, isHeaderCategory, isCollectionCategory } =
+      req.body;
 
     if (![categoriesTitle].every((field) => field?.trim())) {
       throw new ApiError(400, "Categories title  are required");
@@ -39,6 +40,8 @@ const createCategory = async (req, res) => {
 
       image: imageUrl,
       status,
+      isHeaderCategory: !!isHeaderCategory, // Ensure it's a boolean
+      isCollectionCategory: !!isCollectionCategory, // Ensure it's a boolean
     });
 
     const { _id: _, ...createdCategory } = category.toObject();
@@ -64,7 +67,14 @@ const createCategory = async (req, res) => {
 };
 const updateCategory = async (req, res) => {
   try {
-    const { id, categoriesTitle, link, status } = req.body;
+    const {
+      id,
+      categoriesTitle,
+      link,
+      status,
+      isHeaderCategory,
+      isCollectionCategory,
+    } = req.body;
     if (!id) {
       throw new ApiError(400, "Category ID is required");
     }
@@ -77,18 +87,12 @@ const updateCategory = async (req, res) => {
     if (categoriesTitle?.trim()) updateFields.categoriesTitle = categoriesTitle;
     if (link?.trim()) updateFields.link = link;
     if (status?.trim()) updateFields.status = status;
+    updateFields.isHeaderCategory =
+      isHeaderCategory !== undefined ? isHeaderCategory : undefined;
+    updateFields.isCollectionCategory =
+      isCollectionCategory !== undefined ? isCollectionCategory : undefined;
 
     // Check for existing category with the same title or link (excluding the current category)
-    const existingCategory = await Category.findOne({
-      $or: [{ categoriesTitle }, { link }],
-      _id: { $ne: id },
-    });
-    if (existingCategory) {
-      throw new ApiError(
-        409,
-        "Category with the same title or link already exists"
-      );
-    }
 
     const imageLocalPath = req.files?.image?.[0]?.path;
     if (imageLocalPath) {
@@ -171,7 +175,15 @@ const getAllCategories = asyncHandler(async (req, res) => {
   const categories = await Category.aggregate([
     {
       $lookup: {
-        from: "products", // Collection name in MongoDB
+        from: "subcategories", // Collection name in MongoDB (must be subcategories, pluralized by MongoDB)
+        localField: "_id", // Match the category _id
+        foreignField: "category", // Match with the category field in the subcategories
+        as: "subcategories", // The name of the array that will contain the subcategories
+      },
+    },
+    {
+      $lookup: {
+        from: "products", // Collection name for products
         localField: "categoriesTitle",
         foreignField: "categories",
         as: "products",

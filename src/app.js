@@ -27,7 +27,7 @@ import category from "../src/Modules/Category/Category.routes.js";
 import Banner from "../src/Modules/Banner/Banner.routes.js";
 import Product from "../src/Modules/Product/Product.routes.js";
 import cart from "../src/Modules/Cart/cart.routes.js";
-import Order from "../src/Modules/Order/Order.routes.js";
+import Order from "../src/Modules/NewOrder/NewOrder.routes.js";
 import paymentRoutes from "../src/Modules/Payment/Payments.routes.js";
 import termscondtion from "../src/Modules/TermAndConditions/Termscondition.routes.js";
 import blogs from "../src/Modules/Blog/Blog.routes.js";
@@ -39,16 +39,20 @@ import testimonials from "../src/Modules/Testimonial/Testimonial.routes.js";
 import Employee from "../src/Modules/Employee/Employee.routes.js";
 import Notification from "../src/Modules/Notification/Notification.routes.js";
 import EmployeeRole from "../src/Modules/EmployeeRole/EmployeeRole.routes.js";
+import useraddess from "../src/Modules/UserAddress/UserAddress.routes.js";
+import state from "../src/Modules/State/State.routes.js";
 
 import Dashboard from "../src/Modules/DashBoard/DashBoard.routes.js";
 import vendor from "../src/Modules/NewVendor/NewVendor.routes.js";
 import privacy from "../src/Modules/PrivacyPolicy/Privacypolicy.routes.js";
 import addon from "../src/Modules/AddON/Addon.routes.js";
 import wishlist from "../src/Modules/WishList/Wishlist.routes.js";
+import headercategory from "../src/Modules/HeaderCategory/Headercategory.routes.js";
 
 //routes declearetion
 app.use("/api/v1/admin", adminrouter);
 app.use("/api/v1/user", userrouter);
+app.use("/api/v1/adress", useraddess);
 app.use("/api/v1/tax", tax);
 app.use("/api/v1/coupon", coupon);
 app.use("/api/v1/deliverycharg", deliverycharg);
@@ -73,4 +77,6 @@ app.use("/api/v1/EmployeeRole", EmployeeRole);
 app.use("/api/v1/wishlist", wishlist);
 app.use("/api/v1/Dashboard", Dashboard);
 app.use("/api/v1/Vendor", vendor);
+app.use("/api/v1/headercategory", headercategory);
+app.use("/api/v1/State", state);
 export { app };

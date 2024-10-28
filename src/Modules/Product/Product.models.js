@@ -35,11 +35,22 @@ const productSchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+    IsApproved: {
+      type: Boolean,
+      default: false,
+    },
     categories: {
       type: String,
       trim: true,
     },
-
+    state: {
+      type: String,
+      trim: true,
+    },
+    subcategory: {
+      type: String,
+      trim: true, // Reference the Vendor model
+    },
     tags: [
       {
         type: String,
@@ -73,7 +84,18 @@ const productSchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    vendor: {
+      id: {
+        type: mongoose.Schema.Types.ObjectId, // Assuming vendors are stored in a separate collection
+        ref: "Vendor", // Reference the Vendor model
+        required: true,
+      },
+      name: {
+        type: String,
+      },
+    },
   },
+
   { timestamps: true }
 );
 

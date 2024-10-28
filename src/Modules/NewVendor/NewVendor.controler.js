@@ -2,6 +2,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
+import { WithdrawalRequest } from "../WithdrawalRequest/WithdrawalRequest.model.js";
 import { Vendor } from "./NewVendor.model.js";
 
 const registerVendor = asyncHandler(async (req, res) => {
@@ -309,10 +310,218 @@ const getVendorDetails = asyncHandler(async (req, res) => {
       .json(new ApiResponse(false, "Internal server error"));
   }
 });
+
+const addDeliveredProductTransaction = async (req, res) => {
+  const { vendorId, amount } = req.body;
+
+  try {
+    // Find the vendor by their ID
+    const vendor = await Vendor.findById(vendorId);
+
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    // Ensure the transactions field is an array
+    if (!Array.isArray(vendor.transactions)) {
+      vendor.transactions = []; // Initialize as an empty array if it's not already
+    }
+
+    // Create the new transaction
+    const newTransaction = {
+      amount: amount,
+      type: "credit", // Assuming it's a credit transaction for product delivery
+      description: "Product delivered",
+    };
+
+    // Add the transaction to the vendor's transactions array
+    vendor.transactions.push(newTransaction);
+
+    // Correctly update the totalAmount by adding the new amount to the existing totalAmount
+    if (!vendor.totalAmount) {
+      vendor.totalAmount = 0; // If no totalAmount, initialize to 0
+    }
+
+    // Update totalAmount by adding only the new transaction amount
+    vendor.totalAmount = Number(vendor.totalAmount) + Number(amount);
+
+    // Save the updated vendor with the new transaction and updated totalAmount
+    await vendor.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Transaction added and total amount updated",
+      data: vendor,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+};
+const requestWithdrawal = asyncHandler(async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const vendor = req.admin;
+
+    console.log("Vendor object:", vendor); // Log vendor object to inspect
+
+    if (!vendor) {
+      throw new ApiError(500, "Vendor object is not available");
+    }
+
+    const vendorId = vendor._id;
+
+    if (!amount) {
+      throw new ApiError(400, "Amount is required");
+    }
+
+    if (amount <= 0) {
+      throw new ApiError(400, "Amount must be greater than zero");
+    }
+
+    if (amount > vendor.totalAmount) {
+      throw new ApiError(400, "insufficient balance ");
+    }
+
+    const withdrawalRequest = await WithdrawalRequest.create({
+      vendorId,
+      amount,
+      status: "pending",
+    });
+
+    vendor.totalAmount -= amount;
+    vendor.transactions.push({
+      amount,
+      type: "debit",
+      description: `Withdrawal request of ${amount}`,
+    });
+    await vendor.save();
+
+    return res
+      .status(201)
+      .json(
+        new ApiResponse(
+          true,
+          "Withdrawal request submitted successfully",
+          withdrawalRequest
+        )
+      );
+  } catch (error) {
+    console.error("Error during withdrawal request:", error);
+
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(false, error.message));
+    }
+
+    return res
+      .status(500)
+      .json(new ApiResponse(false, "Internal server error"));
+  }
+});
+const updateWithdrawalStatus = asyncHandler(async (req, res) => {
+  try {
+    const { requestId, status } = req.body;
+
+    if (!requestId) {
+      throw new ApiError(400, "Withdrawal request ID is required");
+    }
+
+    if (!status || !["pending", "approved", "rejected"].includes(status)) {
+      throw new ApiError(400, "Invalid status value");
+    }
+
+    // Find the withdrawal request
+    const withdrawalRequest = await WithdrawalRequest.findById(requestId);
+
+    if (!withdrawalRequest) {
+      throw new ApiError(404, "Withdrawal request not found");
+    }
+
+    // Ensure the vendor is authorized to update this request
+
+    // Update the status of the withdrawal request
+    withdrawalRequest.status = status;
+    await withdrawalRequest.save();
+
+    // Optionally handle additional actions based on status
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          true,
+          "Withdrawal request status updated successfully",
+          withdrawalRequest
+        )
+      );
+  } catch (error) {
+    console.error("Error during withdrawal status update:", error);
+
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json(new ApiResponse(false, error.message));
+    }
+
+    return res
+      .status(500)
+      .json(new ApiResponse(false, "Internal server error"));
+  }
+});
+
+const getAllWithdrawalRequests = async (req, res) => {
+  try {
+    // Fetch all withdrawal requests
+    const requests = await WithdrawalRequest.find();
+
+    // Fetch vendor details for each withdrawal request
+    const requestsWithVendorDetails = await Promise.all(
+      requests.map(async (request) => {
+        const vendor = await Vendor.findById(request.vendorId);
+        return {
+          ...request._doc, // Spread existing request data
+          vendor: vendor
+            ? {
+                _id: vendor._id,
+                sellerLegalName: vendor.sellerLegalName,
+                businessName: vendor.businessName,
+                Account: vendor.accountHolderName,
+                BankType: vendor.accountType,
+                accountnumber: vendor.accountNumber,
+                ifsc: vendor.ifscCode,
+              }
+            : null,
+        };
+      })
+    );
+
+    // Return the response
+    res.status(200).json({
+      success: true,
+      data: requestsWithVendorDetails,
+    });
+  } catch (error) {
+    console.error("Error retrieving withdrawal requests:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to retrieve withdrawal requests",
+      error: error.message,
+    });
+  }
+};
 export {
   registerVendor,
   loginVendor,
   getAllVendors,
   logoutVendor,
   getVendorDetails,
+  addDeliveredProductTransaction,
+  requestWithdrawal,
+  getAllWithdrawalRequests,
+  updateWithdrawalStatus,
 };
