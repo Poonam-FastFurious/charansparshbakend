@@ -5,7 +5,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import sendEmail from "../../utils/SendEmail.js";
 import jwt from "jsonwebtoken";
-
+import bcrypt from "bcrypt";
 const initializeAdmin = asyncHandler(async (req, res) => {
   try {
     await connectDB();
