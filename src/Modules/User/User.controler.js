@@ -1,11 +1,12 @@
 import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { asyncHandler } from "../../utils/asyncHandler.js";
-
+import bcrypt from "bcrypt";
 import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { User } from "./User.model.js";
 import { ApiError } from "../../utils/ApiError.js";
+import sendEmail from "../../utils/SendEmail.js";
 
 const generateAccessAndRefereshTokens = async (userId) => {
   try {
@@ -353,6 +354,101 @@ const deleteUser = asyncHandler(async (req, res) => {
     .status(200)
     .json(new ApiResponse(200, null, "User deleted successfully"));
 });
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ status: "User not found" });
+    }
+
+    // Generate a reset token
+    const token = jwt.sign({ id: user._id }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: "1d",
+    });
+    const frontendUrl = req.headers.origin || "http://localhost:5174"; // Fallback URL
+    // Construct the password reset link
+    const resetLink = `${frontendUrl}/reset-password?id=${user._id}&token=${token}`;
+
+    // Use the sendEmail function to send the reset email
+    await sendEmail({
+      email: user.email,
+      subject: "Reset Password Link",
+      message: `Click the link to reset your password: ${resetLink}`,
+    });
+
+    res.status(200).json({
+      status: "Success",
+      message: "Password reset link sent to your email",
+    });
+  } catch (error) {
+    console.error("Error during forgot password:", error);
+
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    }
+
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+const resetPassword = async (req, res) => {
+  try {
+    const { id, token } = req.query;
+    const { password } = req.body;
+
+    // Verify the token
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, async (err, decoded) => {
+      if (err) {
+        console.error("Error verifying token:", err);
+        return res.status(400).json({ Status: "Error with token" });
+      }
+
+      // Check if the decoded token's user ID matches the provided ID
+      if (decoded.id !== id) {
+        return res
+          .status(400)
+          .json({ Status: "Invalid token for the provided user ID" });
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Update the user's password in the database
+      try {
+        await User.findByIdAndUpdate(id, {
+          password: hashedPassword,
+        });
+
+        res.status(200).json({
+          Status: "Success",
+          message: "Password updated successfully",
+        });
+      } catch (err) {
+        console.error("Error updating password:", err);
+        res
+          .status(500)
+          .json({ Status: "Error", message: "Failed to update password" });
+      }
+    });
+  } catch (error) {
+    console.error("Error during reset password:", error);
+
+    if (error instanceof ApiError) {
+      return res
+        .status(error.statusCode)
+        .json({ success: false, message: error.message });
+    }
+
+    res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
 
 export {
   registerUser,
@@ -366,4 +462,6 @@ export {
   getAllUsers,
   getUserProfile,
   deleteUser,
+  forgotPassword,
+  resetPassword,
 };

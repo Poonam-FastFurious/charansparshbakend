@@ -11,6 +11,8 @@ import {
   getAllUsers,
   getUserProfile,
   deleteUser,
+  forgotPassword,
+  resetPassword,
 } from "./User.controler.js";
 
 import { verifyJWT } from "../../middlewares/auth.middlwares.js";
@@ -34,6 +36,8 @@ router.route("/login").post(loginUser);
 router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(verifyJWT, changeCurrentPassword);
+router.route("/forgot-password").post(forgotPassword);
+router.route("/reset-password").post(resetPassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 router.route("/alluser").get(getAllUsers);
 router.route("/update-account").patch(verifyJWT, updateAccountDetails);
