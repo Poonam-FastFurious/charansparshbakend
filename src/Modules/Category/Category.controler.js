@@ -5,28 +5,32 @@ import { uploadOnCloudinary } from "../../utils/Cloudinary.js";
 import { Product } from "../Product/Product.models.js";
 import { Category } from "./Category.model.js";
 
+// ✅ Create Category
 const createCategory = async (req, res) => {
   try {
     if (!req.body) {
       throw new ApiError(400, "Request body is missing or empty");
     }
 
-    const { categoriesTitle, status, isHeaderCategory, isCollectionCategory } =
-      req.body;
+    const {
+      categoriesTitle,
+      description,
+      status,
+      isHeaderCategory,
+      isCollectionCategory,
+    } = req.body;
 
     if (![categoriesTitle].every((field) => field?.trim())) {
-      throw new ApiError(400, "Categories title  are required");
+      throw new ApiError(400, "Categories title is required");
     }
 
-    const existingCategory = await Category.findOne({
-      $or: [{ categoriesTitle }],
-    });
+    const existingCategory = await Category.findOne({ categoriesTitle });
     if (existingCategory) {
-      throw new ApiError(409, "Category with the same title  already exists");
+      throw new ApiError(409, "Category with the same title already exists");
     }
 
-    const imageLocalPath = req.files?.image[0].path;
     let imageUrl;
+    const imageLocalPath = req.files?.image?.[0]?.path;
     if (imageLocalPath) {
       const image = await uploadOnCloudinary(imageLocalPath);
       if (!image) {
@@ -37,11 +41,11 @@ const createCategory = async (req, res) => {
 
     const category = await Category.create({
       categoriesTitle,
-
+      description,
       image: imageUrl,
       status,
-      isHeaderCategory: !!isHeaderCategory, // Ensure it's a boolean
-      isCollectionCategory: !!isCollectionCategory, // Ensure it's a boolean
+      isHeaderCategory: !!isHeaderCategory,
+      isCollectionCategory: !!isCollectionCategory,
     });
 
     const { _id: _, ...createdCategory } = category.toObject();
@@ -53,46 +57,41 @@ const createCategory = async (req, res) => {
       );
   } catch (error) {
     console.error("Error during category creation:", error);
-
     if (error instanceof ApiError) {
       return res
         .status(error.statusCode)
         .json({ success: false, message: error.message });
     }
-
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
   }
 };
+
+// ✅ Update Category
 const updateCategory = async (req, res) => {
   try {
     const {
       id,
       categoriesTitle,
-      link,
+      description,
       status,
       isHeaderCategory,
       isCollectionCategory,
     } = req.body;
+
     if (!id) {
       throw new ApiError(400, "Category ID is required");
     }
 
-    if (!req.body) {
-      throw new ApiError(400, "Request body is missing or empty");
-    }
-
     const updateFields = {};
     if (categoriesTitle?.trim()) updateFields.categoriesTitle = categoriesTitle;
-    if (link?.trim()) updateFields.link = link;
+    if (description?.trim()) updateFields.description = description;
     if (status?.trim()) updateFields.status = status;
-    updateFields.isHeaderCategory =
-      isHeaderCategory !== undefined ? isHeaderCategory : undefined;
-    updateFields.isCollectionCategory =
-      isCollectionCategory !== undefined ? isCollectionCategory : undefined;
-
-    // Check for existing category with the same title or link (excluding the current category)
+    if (isHeaderCategory !== undefined)
+      updateFields.isHeaderCategory = isHeaderCategory;
+    if (isCollectionCategory !== undefined)
+      updateFields.isCollectionCategory = isCollectionCategory;
 
     const imageLocalPath = req.files?.image?.[0]?.path;
     if (imageLocalPath) {
@@ -126,23 +125,21 @@ const updateCategory = async (req, res) => {
       );
   } catch (error) {
     console.error("Error during category update:", error);
-
     if (error instanceof ApiError) {
       return res
         .status(error.statusCode)
         .json({ success: false, message: error.message });
     }
-
     return res
       .status(500)
       .json({ success: false, message: "Internal server error" });
   }
 };
 
+// ✅ Delete Category
 const deleteCategory = asyncHandler(async (req, res) => {
   const { id } = req.query;
 
-  // Check if category exists
   const category = await Category.findById(id);
   if (!category) {
     return res
@@ -150,10 +147,7 @@ const deleteCategory = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Category not found" });
   }
 
-  // Extract category name for checking associated products
   const categoryName = category.categoriesTitle;
-
-  // Check if there are products associated with this category name
   const productsWithCategory = await Product.find({ categories: categoryName });
   if (productsWithCategory.length > 0) {
     return res.status(400).json({
@@ -162,7 +156,6 @@ const deleteCategory = asyncHandler(async (req, res) => {
     });
   }
 
-  // Delete the category
   await Category.findByIdAndDelete(id);
 
   return res.json({
@@ -171,19 +164,20 @@ const deleteCategory = asyncHandler(async (req, res) => {
   });
 });
 
+// ✅ Get all categories (with subcategories and product count)
 const getAllCategories = asyncHandler(async (req, res) => {
   const categories = await Category.aggregate([
     {
       $lookup: {
-        from: "subcategories", // Collection name in MongoDB (must be subcategories, pluralized by MongoDB)
-        localField: "_id", // Match the category _id
-        foreignField: "category", // Match with the category field in the subcategories
-        as: "subcategories", // The name of the array that will contain the subcategories
+        from: "subcategories",
+        localField: "_id",
+        foreignField: "category",
+        as: "subcategories",
       },
     },
     {
       $lookup: {
-        from: "products", // Collection name for products
+        from: "products",
         localField: "categoriesTitle",
         foreignField: "categories",
         as: "products",
@@ -191,12 +185,12 @@ const getAllCategories = asyncHandler(async (req, res) => {
     },
     {
       $addFields: {
-        productCount: { $size: "$products" }, // Add product count
+        productCount: { $size: "$products" },
       },
     },
     {
       $project: {
-        products: 0, // Exclude products array if not needed in response
+        products: 0,
       },
     },
   ]);
@@ -207,4 +201,4 @@ const getAllCategories = asyncHandler(async (req, res) => {
   });
 });
 
-export { createCategory, deleteCategory, updateCategory, getAllCategories };
+export { createCategory, updateCategory, deleteCategory, getAllCategories };
