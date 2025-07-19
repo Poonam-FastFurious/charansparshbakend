@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { ApiError } from "../../utils/ApiError.js";
 import { ApiResponse } from "../../utils/ApiResponse.js";
 import { asyncHandler } from "../../utils/asyncHandler.js";
@@ -103,8 +104,8 @@ const addProduct = asyncHandler(async (req, res) => {
       price: parsedPrice,
       discount,
       cutPrice,
-      categories,
-      subcategory, // Add this line
+      categories: existingCategory._id,
+      subcategory: existingsubCategory._id,
       state,
       tags: parsedTags,
       sku,
@@ -157,13 +158,12 @@ const addProduct = asyncHandler(async (req, res) => {
 
 const getAllProducts = asyncHandler(async (req, res) => {
   try {
-    // Fetch all products
-    const products = await Product.find();
+    const products = await Product.find()
+      .populate("categories", "_id categoriesTitle image description")
+      .populate("subcategory", "_id subCategoryTitle");
 
-    // Count the total number of products
     const totalProducts = await Product.countDocuments();
 
-    // Send the response
     return res.status(200).json({
       success: true,
       message: "Products retrieved successfully",
@@ -180,6 +180,119 @@ const getAllProducts = asyncHandler(async (req, res) => {
       });
     }
 
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+const updateProduct = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.body;
+    const {
+      title,
+      description,
+      price,
+      discount,
+      cutPrice,
+      categories,
+      subcategory, // new
+      tags,
+      sku,
+      shortDescription,
+      stocks,
+      youtubeVideoLink,
+    } = req.body;
+
+    const product = await Product.findById(id);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    if (product.IsApproved) {
+      product.IsApproved = false;
+    }
+
+    if (sku) {
+      const existingProduct = await Product.findOne({ sku });
+      if (existingProduct && existingProduct._id.toString() !== id) {
+        throw new ApiError(409, "Product with the same SKU already exists");
+      }
+    }
+
+    if (categories) {
+      if (!mongoose.Types.ObjectId.isValid(categories)) {
+        throw new ApiError(400, `Invalid category id: ${categories}`);
+      }
+
+      const existingCategory = await Category.findById(categories);
+      if (!existingCategory) {
+        throw new ApiError(400, `Category not found with id: ${categories}`);
+      }
+
+      product.categories = categories;
+    }
+
+    if (subcategory) {
+      if (!mongoose.Types.ObjectId.isValid(subcategory)) {
+        throw new ApiError(400, `Invalid subcategory id: ${subcategory}`);
+      }
+
+      const existingSubcategory = await SubCategory.findById(subcategory);
+      if (!existingSubcategory) {
+        throw new ApiError(
+          400,
+          `Subcategory not found with id: ${subcategory}`
+        );
+      }
+
+      product.subcategory = subcategory;
+    }
+
+    if (req.files) {
+      const { image, thumbnail } = req.files;
+      if (image) {
+        const uploadedImage = await uploadOnCloudinary(image[0].path);
+        if (!uploadedImage) throw new ApiError(400, "Failed to upload image");
+        product.image = uploadedImage.url;
+      }
+      if (thumbnail) {
+        const uploadedThumbnails = await Promise.all(
+          thumbnail.map((file) => uploadOnCloudinary(file.path))
+        );
+        if (!uploadedThumbnails.length) {
+          throw new ApiError(400, "Failed to upload thumbnails");
+        }
+        product.thumbnail = uploadedThumbnails.map((t) => t.url);
+      }
+    }
+
+    if (title) product.title = title;
+    if (description) product.description = description;
+    if (price) product.price = parseFloat(price);
+    if (discount) product.discount = discount;
+    if (cutPrice) product.cutPrice = cutPrice;
+    if (tags) product.tags = Array.isArray(tags) ? tags : [tags];
+    if (sku) product.sku = sku;
+    if (shortDescription) product.shortDescription = shortDescription;
+    if (stocks) product.stocks = parseInt(stocks, 10);
+    if (youtubeVideoLink) product.youtubeVideoLink = youtubeVideoLink;
+
+    await product.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Product updated successfully",
+      product: product.toObject(),
+    });
+  } catch (error) {
+    console.error("Error during product update:", error);
+    if (error instanceof ApiError) {
+      return res.status(error.statusCode).json({
+        success: false,
+        message: error.message,
+      });
+    }
     return res.status(500).json({
       success: false,
       message: "Internal server error",
@@ -263,111 +376,7 @@ const getSingleProduct = asyncHandler(async (req, res) => {
     });
   }
 });
-const updateProduct = asyncHandler(async (req, res) => {
-  try {
-    const { id } = req.body;
-    const {
-      title,
-      description,
-      price,
-      discount,
-      cutPrice,
-      categories,
-      tags,
-      sku,
-      shortDescription,
-      stocks,
-      youtubeVideoLink,
-    } = req.body;
 
-    // Check if product exists
-    const product = await Product.findById(id);
-    if (!product) {
-      throw new ApiError(404, "Product not found");
-    }
-
-    if (product.IsApproved) {
-      product.IsApproved = false; // Set IsApproved to false if it was true
-    }
-    // Validate SKU if provided
-    if (sku) {
-      const existingProduct = await Product.findOne({ sku });
-      if (existingProduct && existingProduct._id.toString() !== id) {
-        throw new ApiError(409, "Product with the same SKU already exists");
-      }
-    }
-
-    // Validate category if provided
-    if (categories) {
-      const existingCategory = await Category.findOne({
-        categoriesTitle: categories,
-      });
-      if (!existingCategory) {
-        throw new ApiError(400, `Invalid category: ${categories}`);
-      }
-    }
-
-    // Handle image and thumbnail updates if files are provided
-    if (req.files) {
-      const { image, thumbnail } = req.files;
-
-      if (image) {
-        const uploadedImage = await uploadOnCloudinary(image[0].path);
-        if (!uploadedImage) {
-          throw new ApiError(400, "Failed to upload image");
-        }
-        product.image = uploadedImage.url;
-      }
-
-      if (thumbnail) {
-        const uploadedThumbnails = await Promise.all(
-          thumbnail.map((file) => uploadOnCloudinary(file.path))
-        );
-        if (!uploadedThumbnails.length) {
-          throw new ApiError(400, "Failed to upload thumbnails");
-        }
-        product.thumbnail = uploadedThumbnails.map(
-          (thumbnail) => thumbnail.url
-        );
-      }
-    }
-
-    // Update product fields if they are provided
-    if (title) product.title = title;
-    if (description) product.description = description;
-    if (price) product.price = parseFloat(price);
-    if (discount) product.discount = discount;
-    if (cutPrice) product.cutPrice = cutPrice;
-    if (categories) product.categories = categories;
-    if (tags) product.tags = Array.isArray(tags) ? tags : [tags];
-    if (sku) product.sku = sku;
-    if (shortDescription) product.shortDescription = shortDescription;
-    if (stocks) product.stocks = parseInt(stocks, 10);
-    if (youtubeVideoLink) product.youtubeVideoLink = youtubeVideoLink;
-
-    await product.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Product updated successfully",
-      product: product.toObject(),
-    });
-  } catch (error) {
-    console.error("Error during product update:", error);
-
-    if (error instanceof ApiError) {
-      return res.status(error.statusCode).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-});
 const approveProduct = asyncHandler(async (req, res) => {
   const { id } = req.query; // Destructure the id from the request body
 

@@ -40,17 +40,21 @@ const productSchema = new mongoose.Schema(
       default: false,
     },
     categories: {
-      type: String,
-      trim: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
     },
+    subcategory: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "SubCategory",
+      required: true,
+    },
+
     state: {
       type: String,
       trim: true,
     },
-    subcategory: {
-      type: String,
-      trim: true, // Reference the Vendor model
-    },
+
     tags: [
       {
         type: String,

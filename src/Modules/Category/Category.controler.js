@@ -147,8 +147,7 @@ const deleteCategory = asyncHandler(async (req, res) => {
       .json({ success: false, message: "Category not found" });
   }
 
-  const categoryName = category.categoriesTitle;
-  const productsWithCategory = await Product.find({ categories: categoryName });
+  const productsWithCategory = await Product.find({ categories: category._id });
   if (productsWithCategory.length > 0) {
     return res.status(400).json({
       success: false,
@@ -200,5 +199,22 @@ const getAllCategories = asyncHandler(async (req, res) => {
     data: categories,
   });
 });
+// controllers/categoryController.js
+const getCategoryById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const category = await Category.findById(id);
+  if (!category) {
+    return res
+      .status(404)
+      .json({ success: false, message: "Category not found" });
+  }
+  res.status(200).json({ success: true, data: category });
+});
 
-export { createCategory, updateCategory, deleteCategory, getAllCategories };
+export {
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  getAllCategories,
+  getCategoryById,
+};
